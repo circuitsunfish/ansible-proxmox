@@ -1,0 +1,117 @@
+---
+- hosts: all
+  remote_user: deployer
+  become: yes
+
+  vars:
+    api_host: 192.168.1.1
+    api_user: root@pam
+    node: sphene
+
+  vars_prompt:
+    - name: "orgname"
+      prompt: "What is the organization name"
+      private: no
+    - name: "api_password"
+      prompt: "What is the API password"
+      private: yes
+
+  vars_files:
+    - vars.yml
+  tasks:
+    - name: create the new containers
+      proxmox:
+        api_host: "{{ api_host }}"
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        node: "{{ node }}"
+        storage: containment
+        hostname: "{{ orgname + '-' + item.name }}"
+        ostemplate: "{{ item.template }}"
+        netif: '{"net0":"name=eth0,ip=dhcp,ip6=dhcp,bridge=vmbr0"}'
+        state: present
+      loop: "{{ hosts }}"
+      register: create_containers_result
+    - name: "wait for containers to exist"
+      wait_for:
+        timeout: 2
+    # - name: set information about the new containers
+    #   set_fact:
+    #     host_info: "{{ host_info|default([]) + [ {'hostname': item | json_query('invocation.module_args.hostname'), 'vmid': item | json_query('msg') | regex_search('[0-9]{3}') } ] }}"
+    #   loop: "{{ create_containers_result | json_query('results[*]') }}"
+    - name: start demo containers
+      proxmox:
+        api_host: "{{ api_host }}"
+        api_user: "{{ api_user }}"
+        api_password: "{{ api_password }}"
+        hostname: "{{ orgname + '-' + item.name }}"
+        state: started
+      loop: "{{ hosts }}"
+    # - name: display information about the new containers
+    #   debug:
+    #     msg: "{{ item }}"
+    #   loop: "{{ create_containers_result | json_query('results[*]') }}"
+    # - name: register information about new containers
+    #   set_fact:
+    #     vmids = "{{ vmids|default([]) + [ item | regex_search('[0-9]{3}') ] }}"
+    #   loop: "{{ create_containers_result | json_query('results[*].msg') }}"
+    #   register: container_info
+    # - name: show VMIDs for new containers
+    #   debug:
+    #     msg: "{{ host_info }}"
+    # - name: customize the new containers
+    #   shell: |
+    #     vmid=$(pct list | grep "{{ item.name }}" | cut -f 1 -d ' ');
+    #     echo "VMID is $vmid"
+    #     function container_run {
+    #       echo "Executing: $1"
+    #       pct exec $vmid -- bash -c '$1'
+    #     }
+    #     case "{{ item.name }}" in
+    #       file)
+    #         #pct exec $vmid -- bash -c ' sed -i "s/replace/"{{ orgname + '-' + item.name }}"/g" /etc/samba/smb.conf' && pct exec $vmid -- bash -c "systemctl restart smb"
+    #         container_run ' sed -i "s/replace/"{{ orgname + '-' + item.name }}"/g" /etc/samba/smb.conf' && container_run "systemctl restart smb"
+    #         ;;
+    #       web)
+    #         container_run 'cd /var/www/html && \
+    #         url=$(hostname -I | awk "{print $1}") && \
+    #         wp option update home "http://$url" && \
+    #         wp option update siteurl "http://$url" && \
+    #         wp option update blogname {{ orgname }}'
+    #         ;;
+    #     *)
+    #       echo "unknown"
+    #     esac
+
+    #     exit 0;
+    #   args:
+    #     executable: /bin/bash
+    #   loop: "{{ hosts }}"
+    #   register: stdout
+    - name: wait for containers to start
+      wait_for:
+        timeout: 5
+    # - name: run customization scripts
+    #   script: "{{ item.script }}"
+    #   loop: "{{ hosts }}"
+    - name: create directory for customization scripts
+      file:
+        path: /var/ansible
+        state: directory
+        recurse: yes
+        mode: '770'
+    - name: copy over the customization scripts
+      copy:
+        src: "{{ item.script }}"
+        dest: "{{ '/var/ansible/' + item.script }}"
+        mode: '770'
+        owner: root
+        force: yes
+      loop: "{{ hosts }}"
+    - name: run customization scripts
+      command: "{{ '/var/ansible/' + item.script + ' ' + item.name + ' ' + orgname }}"
+      loop: "{{ hosts }}"
+    #   register: stdout
+    # - name: show output for customization scripts
+    #   debug:
+    #     msg: "{{ stdout }}"

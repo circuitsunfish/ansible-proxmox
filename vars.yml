@@ -1,0 +1,10 @@
+hosts:
+  - name: file
+    template: 'local:backup/vzdump-file.tar'
+    script: configure_fileserver.sh
+  - name: web
+    template: 'local:backup/vzdump-web.tar'
+    script: configure_webserver.sh
+  - name: data
+    template: 'local:backup/vzdump-data.tar'
+    script: 'configure_dataserver.sh'

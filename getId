@@ -1,0 +1,31 @@
+#!/bin/bash
+#tool to get vm ids
+#ashton
+
+#the vm ids can be incremented from multiple sources
+#this helps us avoid colliding
+
+#this is where we will keep the full list of IDs
+declare -a idlist=()
+#this is a flag we'll use to strip the header
+
+id_pct=`pct list | cut -f 1 -d ' '` 	#this collects all the container IDs
+id_qm=`qm list | cut -f 8 -d ' '`	#this collects all the VM IDs
+
+function remove_header () {
+	header=0
+	for id in $1 			#loop over all the IDs and add them to the list
+	do
+		if [ $header -eq 0 ] 	#the first time we see you, it's a header.
+		then
+			header=1	# next times will be IDs
+			continue
+		else
+			idlist+=($id)	# add the id to the list
+		fi
+	done
+}
+remove_header "$id_pct"
+remove_header "$id_qm"
+
+echo "${idlist[@]}"
