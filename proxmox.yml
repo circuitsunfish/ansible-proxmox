@@ -108,6 +108,13 @@
         owner: root
         force: yes
       loop: "{{ hosts }}"
+    - name: copy the SQL script
+      copy:
+        src: jokeemr.sql
+        dest: /var/ansible/jokeemr.sql
+        mode: '660'
+        owner: root
+        force: yes
     - name: run customization scripts
       command: "{{ '/var/ansible/' + item.script + ' ' + item.name + ' ' + orgname }}"
       loop: "{{ hosts }}"
