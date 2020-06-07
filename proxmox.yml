@@ -47,6 +47,13 @@
         hostname: "{{ orgname + '-' + item.name }}"
         state: started
       loop: "{{ hosts }}"
+    # - name: create the VM for the router
+    #   proxmox_kvm:
+    #     api_host: "{{ api_host }}"
+    #     api_user: "{{ api_user }}"
+    #     api_password: "{{ api_password }}"
+    #     node: "{{ node }}"
+    #     name: route
     # - name: display information about the new containers
     #   debug:
     #     msg: "{{ item }}"
